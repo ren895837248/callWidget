@@ -1,8 +1,18 @@
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    //id("com.google.devtools.ksp")
+    id("com.google.devtools.ksp")
+
+
 }
+
+
+//allprojects {
+//    repositories{
+//        google()
+//    }
+//}
 
 android {
     namespace = "com.ys.callwidget"
@@ -36,9 +46,10 @@ android {
     }
     buildFeatures {
         compose = true
+        viewBinding = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.4.3"
+        kotlinCompilerExtensionVersion = "1.5.0"
     }
     packaging {
         resources {
@@ -47,14 +58,34 @@ android {
     }
 }
 
-dependencies {
-    room_version = "2.5.1"
-    implementation("androidx.room:room-common:2.5.2")
-    implementation ("androidx.room:room-runtime:$room_version")
-    kps "androidx.room:room-compiler:$room_version"
-    implementation ("androidx.room:room-ktx:$room_version")
 
-    activity_version = "1.6.1"
+
+dependencies {
+    implementation(platform("androidx.compose:compose-bom:2023.03.00"))
+    androidTestImplementation(platform("androidx.compose:compose-bom:2023.03.00"))
+    ksp("androidx.room:room-compiler:2.5.1")
+//    val room_version = "2.5.1"
+//    implementation("androidx.room:room-common:2.5.2")
+//    implementation ("androidx.room:room-runtime:$room_version")
+//    ksp("androidx.room:room-compiler:$room_version")
+//    implementation ("androidx.room:room-ktx:$room_version")
+
+
+    val room_version = "2.5.1"
+
+    implementation("androidx.room:room-runtime:$room_version")
+    annotationProcessor("androidx.room:room-compiler:$room_version")
+
+    // To use Kotlin annotation processing tool (kapt)
+    //kapt("androidx.room:room-compiler:$room_version")
+    // To use Kotlin Symbol Processing (KSP)
+    //ksp("androidx.room:room-compiler:$room_version")
+
+    implementation("androidx.room:room-ktx:$room_version")
+
+    implementation("org.apache.commons:commons-io:1.3.2")
+
+    val activity_version = "1.6.1"
 
     implementation("androidx.activity:activity-ktx:1.7.2")
 

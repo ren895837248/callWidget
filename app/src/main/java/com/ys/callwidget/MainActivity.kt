@@ -7,10 +7,15 @@ import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
+import android.os.FileUtils
+import android.os.PersistableBundle
 import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds
 import android.provider.MediaStore
 import android.util.Log
+import android.util.TimeUtils
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
@@ -52,10 +57,30 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import com.ys.callwidget.ui.theme.CallwidgetTheme
+import org.apache.commons.io.IOUtils
+import java.io.File
+import java.io.FileOutputStream
 
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: CallWidgetViewModel by viewModels()
+
+//    private val viewModel: CallWidgetViewModel by activityViewModels {
+//        InventoryViewModelFactory(
+//            (activity?.application as InventoryApplication).database
+//                .itemDao()
+//        )
+//    }
+
+    private val viewModel: CallWidgetViewModel by viewModels(){
+        CallWidgetViewModel.CallWidgetViewModelFactory(
+            (application as CallWidgetApplication).database
+                .userDao()
+        )
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?, persistentState: PersistableBundle?) {
+        super.onCreate(savedInstanceState, persistentState)
+    }
 
     fun checkPermission() {
 
@@ -66,12 +91,30 @@ class MainActivity : ComponentActivity() {
         ) {
             var requestPermissionLauncher =
                 registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
-
+                    println(granted)
                 }
             requestPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.WRITE_CONTACTS,
                     Manifest.permission.READ_CONTACTS
+                )
+            )
+        }
+
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_DENIED
+        ) {
+            var requestPermissionLauncher =
+                registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
+                    println(granted)
+                }
+            requestPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.MANAGE_EXTERNAL_STORAGE
                 )
             )
         }
@@ -125,29 +168,28 @@ class MainActivity : ComponentActivity() {
         pickMedia =
             registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
                 if (uri != null) {
-                    viewModel.personPicUri.setValue(uri)
-//
-//
-//
-//
-//
-//                    val projection: Array<String> =
-//                        arrayOf(
-//                            MediaStore.Images.Media.DATA
-//                        )
-//                    contentResolver.query(uri, projection, null, null, null)
-//                        .use { cursor ->
-//                            // If the cursor returned is valid, get the phone number
-//                            if (cursor != null && cursor.moveToFirst()) {
-//                                var index =
-//                                    cursor.getColumnIndex(MediaStore.Images.Media.DATA)
-//                                val filePath = cursor.getString(index)
-//                                Log.d("filepath", "picture file path:$filePath")
-//
-//                            }
-//                        }
-//
+                    val dirRoot = applicationContext.filesDir.absoluteFile
+                    val pciDir ="$dirRoot/callWidgetPic"
+                    if(!File(pciDir).exists()){
+                        val success = File(pciDir).mkdirs()
+                        println(success)
+                    }
 
+
+                    val fileDescirptor = contentResolver.openFileDescriptor(uri,"r")
+                    if (fileDescirptor != null) {
+                        val inputStrem =  contentResolver.openInputStream(uri)
+                        if(inputStrem!=null){
+                            val fileName = System.currentTimeMillis()
+                            val outFile = File("$pciDir/$fileName")
+                            outFile.createNewFile()
+                            IOUtils.copy(inputStrem,FileOutputStream(outFile))
+                            viewModel.personPicPath.setValue(outFile.absolutePath)
+                        }
+
+                    }
+
+                    viewModel.personPicUri.setValue(uri)
                     Log.d("PhotoPicker", "Selected URI: $uri")
                 } else {
                     Log.d("PhotoPicker", "No media selected")
@@ -156,12 +198,10 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
+        viewModel.listAll()
         checkPermission()
-
-
-
-
 
         createContactsLaunch()
 
@@ -250,11 +290,15 @@ class MainActivity : ComponentActivity() {
                 pickMedia?.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
 
             }) {
+                val dirRoot = Environment.getExternalStorageDirectory().absoluteFile
+                val pciDir ="$dirRoot/callWidgetPic"
+                if(!File(pciDir).exists()){
+                    File(pciDir).mkdirs()
+                }
                 if (uri !=null && uri.path!=null && uri.path!!.length >0){
                     val fileDescirptor = contentResolver.openFileDescriptor(uri,"r")
                     if (fileDescirptor != null) {
                         val bitmap = BitmapFactory.decodeFileDescriptor(fileDescirptor.fileDescriptor)
-
                         Image(painter = BitmapPainter(image = bitmap.asImageBitmap()),contentDescription = "",
                             modifier = Modifier.height(
                                 400.dp
@@ -288,7 +332,8 @@ class MainActivity : ComponentActivity() {
                     .fillMaxWidth()
             ) {
                 Button(onClick = {
-
+                    viewModel.saveUser()
+                    Toast.makeText(applicationContext,"保存成功",Toast.LENGTH_LONG)
                 }) {
                     Text(text = "保存")
                 }

@@ -1,4 +1,8 @@
 package com.ys.callwidget
 
-class CallWidgetApplication {
+import android.app.Application
+
+class CallWidgetApplication : Application(){
+    val database: CallWidgetDatabase by lazy { CallWidgetDatabase.getDatabase(this) }
+
 }
